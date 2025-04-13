@@ -10,6 +10,9 @@ env:
 
 jobs:
   build:
+    permissions:
+      contents: read
+      packages: write
     name: 'Build'
     runs-on: ubuntu-latest
     steps:
