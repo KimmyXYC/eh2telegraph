@@ -53,12 +53,16 @@ impl ProxiedClient {
             Some(cfg) if !cfg.endpoint.is_empty() && !cfg.authorization.is_empty() => {
                 Self::new(&cfg.endpoint, &cfg.authorization)
             }
-            Some(_) => {
-                tracing::warn!("proxy config exists but endpoint or authorization is empty, using direct connection");
+            Some(cfg) => {
+                tracing::warn!(
+                    "proxy config incomplete (endpoint: {}, authorization: {}), using direct connection",
+                    if cfg.endpoint.is_empty() { "empty" } else { "set" },
+                    if cfg.authorization.is_empty() { "empty" } else { "set" }
+                );
                 Self::default()
             }
             None => {
-                tracing::warn!("initialized ProxiedClient without proxy config");
+                tracing::warn!("no proxy config found, using direct connection");
                 Self::default()
             }
         }
