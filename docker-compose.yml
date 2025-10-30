@@ -1,7 +1,7 @@
 version: "3"
 services:
   ehbot:
-    image: ghcr.io/qini7-sese/ehbot:latest
+    build: .
     container_name: ehbot
     restart: always
     network_mode: "host"

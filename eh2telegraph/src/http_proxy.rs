@@ -9,7 +9,9 @@ const TIMEOUT: Duration = Duration::from_secs(30);
 
 #[derive(serde::Deserialize, Clone, Debug, Default)]
 struct ProxyConfig {
+    #[serde(default)]
     endpoint: String,
+    #[serde(default)]
     authorization: String,
 }
 
@@ -48,7 +50,13 @@ impl ProxiedClient {
         match config::parse::<ProxyConfig>(CONFIG_KEY)
             .expect("unable to parse proxy config(key is {CONFIG_KEY})")
         {
-            Some(cfg) => Self::new(&cfg.endpoint, &cfg.authorization),
+            Some(cfg) if !cfg.endpoint.is_empty() && !cfg.authorization.is_empty() => {
+                Self::new(&cfg.endpoint, &cfg.authorization)
+            }
+            Some(_) => {
+                tracing::warn!("proxy config exists but endpoint or authorization is empty, using direct connection");
+                Self::default()
+            }
             None => {
                 tracing::warn!("initialized ProxiedClient without proxy config");
                 Self::default()
@@ -100,5 +108,38 @@ impl ProxiedClient {
                 .header("X-Authorization", p.authorization.clone()),
             None => self.inner.request(method, url),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_proxy_config_parsing() {
+        // Test parsing empty proxy config
+        let yaml = "endpoint: \"\"\nauthorization: \"\"";
+        let cfg: ProxyConfig = serde_yaml::from_str(yaml).unwrap();
+        assert_eq!(cfg.endpoint, "");
+        assert_eq!(cfg.authorization, "");
+
+        // Test parsing missing fields (should use default)
+        let yaml = "";
+        let cfg: ProxyConfig = serde_yaml::from_str(yaml).unwrap();
+        assert_eq!(cfg.endpoint, "");
+        assert_eq!(cfg.authorization, "");
+
+        // Test parsing valid proxy config
+        let yaml = "endpoint: \"https://proxy.example.com/\"\nauthorization: \"test-key\"";
+        let cfg: ProxyConfig = serde_yaml::from_str(yaml).unwrap();
+        assert_eq!(cfg.endpoint, "https://proxy.example.com/");
+        assert_eq!(cfg.authorization, "test-key");
+    }
+
+    #[test]
+    fn test_proxied_client_default() {
+        // Test that default ProxiedClient has no proxy
+        let client = ProxiedClient::default();
+        assert!(client.proxy.is_none());
     }
 }
